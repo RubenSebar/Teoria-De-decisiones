@@ -1,0 +1,224 @@
+---
+title: "Tarea 2"
+date: "2025"
+author: "Ruben Sebastian Barcenas Becerril"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 1
+    theme: cerulean
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(tidyverse)
+library(discrtr) # A companion package for the book Introduction to Discrete Choice Analysis with `R`
+library(mlogit) # Multinomial Logit Models
+library(readr) # Read Rectangular Text Data
+
+library(gplots) # Various R Programming Tools for Plotting Data
+library(ggmosaic) # Mosaic Plots in the 'ggplot2' Framework
+library(treemapify)
+library(ggridges)
+library(ggalluvial)
+library(plotly)
+```
+
+
+*Call data set Car from package mlogit. Once you have loaded the data set, do the following:*
+
+* **How many variables are there in this data set and of which type (i.e., categorical/quantitative)?**
+
+* **Choose four relevant categorical variables from this data set and describe them using univariate, bivariate, and multivariate techniques. Discuss your results.**
+
+* **What ideas about individuals’ choices regarding car do you develop from this EDA exercise?**
+
+
+
+```{r}
+data(Car)
+glimpse(Car)
+```
+
+
+* **How many variables are there in this data set and of which type (i.e., categorical/quantitative)?**
+
+```{r}
+cat("Número de variables numéricas:", sum(sapply(Car, is.numeric)), "\n",
+    "Número de variables categóricas:", sum(sapply(Car, is.factor)), "\n",
+    "Número total de variables:", ncol(Car), "\n")
+```
+
+En total 70 variables, donde 57 de ellas son numéricas y 13  son categóricas.
+
+
+* **Choose four relevant categorical variables from this data set and describe them using univariate, bivariate, and multivariate techniques. Discuss your results.**
+
+
+```{r}
+new_car <- Car
+choice_char <- gsub("choice","", new_car$choice)
+new_car <- new_car |> mutate(choice_char = choice_char)
+
+type <- vector("character", nrow(new_car))
+fuel <- vector("character", nrow(new_car))
+price <- vector("numeric", nrow(new_car))
+range <- vector("numeric", nrow(new_car))
+acc <- vector("numeric", nrow(new_car))
+speed <- vector("numeric", nrow(new_car))
+pollution <- vector("numeric", nrow(new_car))
+size <- vector("numeric", nrow(new_car))
+space <- vector("numeric", nrow(new_car))
+cost <- vector("numeric", nrow(new_car))
+station <- vector("numeric", nrow(new_car))
+for (i in 1:nrow(new_car)) {
+  type[i] <- as.character(new_car[i, paste0("type", new_car$choice_char[i], collapse = "")])
+  fuel[i] <- as.character(new_car[i, paste0("fuel", new_car$choice_char[i], collapse = "")])
+  price[i] <- new_car[i, paste0("price", new_car$choice_char[i], collapse = "")]
+  range[i] <- new_car[i, paste0("range", new_car$choice_char[i], collapse = "")]
+  acc[i] <- new_car[i, paste0("acc", new_car$choice_char[i], collapse = "")]
+  speed[i] <- new_car[i, paste0("speed", new_car$choice_char[i], collapse = "")]
+  pollution[i] <- new_car[i, paste0("pollution", new_car$choice_char[i], collapse = "")]
+  size[i] <- new_car[i, paste0("size", new_car$choice_char[i], collapse = "")]
+  space[i] <- new_car[i, paste0("space", new_car$choice_char[i], collapse = "")]
+  cost[i] <- new_car[i, paste0("cost", new_car$choice_char[i], collapse = "")]
+  station[i] <- new_car[i, paste0("station", new_car$choice_char[i], collapse = "")]
+}
+
+new_car <- new_car |> mutate(choice_num= factor(choice_char), type=type, fuel=fuel, price=price, range=range,
+                             acc=acc, speed=speed, pollution=pollution, size=size, space=space, cost=cost,
+                             station=station)
+
+new_car$type <- factor(new_car$type, levels = levels(new_car$type1))
+new_car$fuel <- factor(new_car$fuel, levels = levels(new_car$fuel1))
+```
+
+
+```{r}
+summary(new_car)
+```
+
+Converitmos las numericas a categoricas
+
+```{r}
+new_car$pollution <- as.numeric(new_car$pollution)
+
+new_car <- new_car |> 
+  mutate(pollution_ready = cut(pollution,
+                         breaks = c(0, 0.5, 1, Inf),
+                         labels = c("baja", "media", "alta"),
+                         right = TRUE))
+table(new_car$pollution_ready)
+
+
+new_car$size <- as.numeric(new_car$size)  
+
+new_car <- new_car |>
+  mutate(size_segmento = cut(size,
+                        breaks = c(0, 1, 2, 3, Inf),
+                        labels = c("compacto", "urbano", "familiares", "Ejecutivos"),
+                        right = TRUE))
+table(new_car$size_segmento)
+```
+
+**UNIVARIADO**
+
+```{r}
+new_car |> group_by(type) |> summarize(n = n()) |> 
+ggplot(aes(fill = type, area = n)) +
+  geom_treemap() +
+  labs(fill= "types")
+```
+
+Sportcar es el menos popular y el más mpopular el regcar
+
+```{r}
+new_car <- new_car |> 
+  mutate(
+    pollution_ready = factor(pollution_ready, levels = levels(new_car$pollution_ready)),
+    size_segmento = factor(size_segmento, levels = levels(new_car$size_segmento)),
+    type = factor(type, levels = levels(new_car$type)),
+    fuel = factor(fuel, levels = levels(new_car$fuel))
+  )
+
+new_car |> 
+  ggplot(aes(x = pollution_ready)) + 
+  geom_bar(color = "black", fill = "cyan") + 
+  labs(x = "Contaminación que genera el Vehículo", y = "Número de respuestas")
+
+new_car |> 
+  ggplot(aes(x = size_segmento)) + 
+  geom_bar(color = "black", fill = "yellow") + 
+  labs(x = "Tipo de tamaño", y = "Número de respuestas")
+
+new_car |> 
+  ggplot(aes(x = type)) + 
+  geom_bar(color = "black", fill = "darkgreen") + 
+  labs(x = "Tipo de vehículo", y = "Número de respuestas")
+
+new_car |> 
+  ggplot(aes(x = fuel)) + 
+  geom_bar(color = "black", fill = "blue2") + 
+  labs(x = "Tipo de combustible", y = "Número de respuestas")
+
+
+```
+
+**BIVARIADO**
+
+```{r}
+new_car |>  select(type, size) |> summary()
+```
+
+```{r}
+new_car |>  ggplot(aes(x = type, y = pollution)) +
+  geom_boxplot()
+```
+
+
+
+```{r}
+new_car |>  ggplot(aes(x = type, y = pollution, fill = type)) +
+  geom_violin(trim = TRUE) +
+  geom_boxplot(width = 0.1, fill = "white") + 
+  labs(x="tipo", y = expression("size"), fill = "type")
+```
+
+
+El regcar es el que tiene mayor variabildad, es decir, hay distintos modelos dentro de ese segmento
+
+*Multivariado*
+
+```{r}
+new_car %>% ggplot(aes(x = size, y = type, fill = type)) +
+  geom_density_ridges(jittered_points = TRUE, bandwidth = 3.5, 
+                      position = position_points_jitter(width = 0.05, height = 0),
+                      point_shape = '|', point_size = 3, point_alpha = 1, alpha = 0.7) +
+  labs(y="type", x = expression("Size"), fill = "type")
+
+```
+
+
+```{r}
+new_car |> ggplot(aes(x = pollution, y = fuel, fill = fuel)) +
+  geom_density_ridges(jittered_points = TRUE, bandwidth = 3.5,
+                      position = position_points_jitter(width = 0.05, height = 0),
+                      point_shape = '|', point_size = 3, point_alpha = 1, alpha = 0.7)+
+  labs(y="Fuel", x = expression("Pollution"), fill = "fuel")
+```
+
+```{r}
+ggplot(data = new_car |>  group_by(type, fuel) |> 
+         summarize(n = n(), pollution = mean(pollution), .groups = "drop"),
+       aes(area = n, fill = pollution, label = fuel, subgroup = type)) +
+  geom_treemap() +
+  geom_treemap_subgroup_border(size = 5)+
+  geom_treemap_subgroup_text(fontface = "bold", colour = "white", place = "topleft",
+                             size = 13, grow = FALSE) +
+  geom_treemap_text(fontface = "italic", colour = "lightgray", place = "centre", size = 10,
+                    grow = FALSE) +
+  labs(fill = expression("pollution"))
+```
+

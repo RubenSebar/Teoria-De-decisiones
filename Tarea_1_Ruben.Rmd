@@ -1,0 +1,125 @@
+---
+title: "Tarea 1"
+author: "Ruben Sebastian Barcenas Becerril"
+date: "Enero 2025"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 1
+    theme: cerulean
+---
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(tidyverse)
+library(discrtr) # A companion package for the book Introduction to Discrete Choice Analysis with `R`
+library(mlogit) # Multinomial Logit Models
+library(readr) # Read Rectangular Text Data
+library(plotly)
+```
+
+
+
+*Invoke data set Mode from package mlogit. To do this you need to first load the package. This is a data set with choices about mode of transportation. This is done as follows:*
+
+```{r}
+data("Mode")
+```
+
+*Once you have loaded the data set, answer the following questions:*
+
+# **Describe this data set. How many variables are there and of which type (i.e., categorical/quantitative)?**
+
+```{r}
+glimpse(Mode)
+```
+
+```{r}
+cat("Número de variables numéricas:", sum(sapply(Mode, is.numeric)), "\n",
+    "Número de variables categóricas:", sum(sapply(Mode, is.factor)), "\n",
+    "Número total de variables:", ncol(Mode), "\n")
+```
+
+Esta base de datos tiene 9 variables, donde 8 son numericas y una categoricapo **categórica** y las 8 restantes son **númericas**.
+
+
+# **How many different modes of transportation are in this data set? What is the most popular mode? What is the least popular mode?**
+
+
+```{r}
+summary(Mode)
+
+ggplot(Mode)+
+  geom_bar(aes(choice, fill=choice), color= "black", show.legend=FALSE)+
+  theme_bw()
+```
+
+4 medios de transporte, el más popular es el coche y el menos es viajar compartidos el **coche** y el menos popular es el **viaje/auto compartido**.
+
+
+# **In general, what is the most expensive mode? The least expensive?**
+
+
+```{r}
+ggplot(Mode)+
+  geom_density(aes(cost.car, fill="car"), color= "black", alpha=0.5)+
+  geom_density(aes(cost.carpool, fill="carpool"), color= "black", alpha=0.5)+
+  geom_density(aes(cost.bus, fill="bus"), color= "black", alpha=0.5)+
+  geom_density(aes(cost.rail, fill="rail"), color= "black", alpha=0.5)+
+  scale_fill_manual(values = c("car"="firebrick", "carpool"="dodgerblue", "bus"="yellow", "rail"="cyan", name="Mode"))+
+  xlab("cost")+
+theme_bw()
+
+```
+
+
+El auto es el mas costoso y el menos costoso es el autobus
+
+# **Create a plot showing the univariate distributions of time by car and time by bus. Discuss.**
+
+```{r}
+grafica_time <- ggplot(Mode)+
+  geom_density(aes(time.car, fill="car"), color= "black", alpha=0.5)+
+  geom_density(aes(time.carpool, fill="carpool"), color= "black", alpha=0.5)+
+  geom_density(aes(time.bus, fill="bus"), color= "black", alpha=0.5)+
+  geom_density(aes(time.rail, fill="rail"), color= "black", alpha=0.5)+
+  scale_fill_manual(values = c("car"="firebrick", "carpool"="blue", "bus"="pink", "rail"="green", name="Mode"))+
+  xlab("Time")+
+theme_bw()
+
+```
+
+```{r}
+ggplotly(grafica_time)
+```
+
+
+El medio de transporte que tiene una mayor distribución con respecto al tiempo es el camión en coontraste con el coche. 
+
+
+# **How do choices relate to cost by the different modes?**
+
+
+```{r}
+varnum <- Mode |>
+dplyr::select(where(is.numeric))
+varnum <- names(varnum)
+  
+for(var in varnum) {
+  grafica_box <- ggplot(Mode)+
+  geom_boxplot(aes(choice, eval(as.name(var)), fill=choice), show.legend = FALSE)+
+  ylab(var)+
+  theme_bw()
+
+print(grafica_box)
+}
+  
+```
+
+Usar el auto tiene menores costos relacionados que otros transportes.El viaje  compartido, autobús y tren tienen los costos más altos y similares y
+la dispersión es algo similar en todos los modos, pero el auto tiene una caja más pequeña, lo que indica menor variabilidad dentro de ese 50%.
+

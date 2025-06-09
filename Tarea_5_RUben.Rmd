@@ -1,0 +1,137 @@
+---
+title: "Tarea_5
+author: "Ruben Sebastian Barcenas Becerril"
+date: "2025"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(tidyverse)
+library(discrtr) # A companion package for the book Introduction to Discrete Choice Analysis with `R`
+library(dplyr) # A Grammar of Data Manipulation
+library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics
+library(mlogit) # Multinomial Logit Models
+library(readr) # Read Rectangular Text Data
+library(gplots) # Various R Programming Tools for Plotting Data
+library(ggmosaic) # Mosaic Plots in the 'ggplot2' Framework
+library(treemapify)
+library(ggridges)
+library(ggalluvial)
+library(evd)
+library(htmlwidgets) # HTML Widgets for R
+library(kableExtra) # Construct Complex Table with kable and Pipe Syntax
+library(plotly) # Create interactive web graphics
+library(tidyr) # Tidy messy data
+#library(webshot2) # Take screenshots of web pages
+
+library(evd)
+```
+
+
+
+*1. What is the difference between a marginal effect and an elasticity?*
+
+El efecto marginal mide el cambio total en la probabilidad, es decir, cuando hay una variable independiente que cambia en una unidad pero siguelo demás constante. En cambio, la elasticidad mide el cambio en porcentaje de la variable dependiente como resultado de un cambio del 1% en una variable independiente.
+
+
+*2. Why is it inappropriate to calculate the elasticity of a dummy variable?*
+
+Una variable dumy es una variable binaria que solo puede tomar valores de 0 o 1.
+
+La elasticidad mide el cambio porcentual en una variable dependiente, cuando una variable independiente cambia en 1% por decir, pero no tiene logica una variable dummy por que no se puede cambiar en un 0 o un 1 en un 1%.$sí$* o *$no$*.
+
+
+*3. Use Model 3 in this chapter and calculate the marginal effects and the elasticities for operating cost at the mean of all variables.*
+
+```{r}
+data("Heating")
+
+```
+
+
+```{r}
+Proportion <- Heating %>% group_by(depvar) %>% summarise(no_rows = n())
+
+df <- data.frame(System = c("Gas Central", "Gas Room", "Electric Central", "Electric Room", "Heat Pump"),
+                 Operation = c(mean(Heating$oc.gc), mean(Heating$oc.gr),
+                               mean(Heating$oc.ec), mean(Heating$oc.er),
+                               mean(Heating$oc.hp)),
+                 Proportion = Proportion$no_rows/900)
+
+df %>% kable() %>% kable_styling()
+```
+
+
+```{r}
+H <- Heating %>% mlogit.data(shape = "wide", choice="depvar", varying=c(3:12))
+```
+
+
+```{r}
+
+model3_Long <- mlogit(depvar~oc, H, reflevel = "ec")
+summary(model3_Long)
+
+```
+
+```{r}
+
+oc_mean <- Heating[1, ]
+mean_cost <- Heating %>% select(starts_with("oc")) %>%
+             summarise(across(.cols = everything(), mean))
+
+oc_mean[8:12] <- mean_cost
+head(oc_mean)
+```
+
+```{r}
+p_model1_ic_mean <- predict(model3, newdata = mlogit.data(oc_mean, shape = "wide", choice = "depvar", varying = 8:12))
+```
+
+
+```{r}
+effects(model3, covariate = "oc", type = "ra", data = mlogit.data(oc_mean, shape = "wide", choice = "depvar", varying = 8:12))
+```
+
+```{r}
+effects(model3, covariate = "oc", type = "rr", data = mlogit.data(oc_mean, shape = "wide", choice = "depvar", varying = 8:12))
+```
+
+*4. Use Model 3 in this chapter to calculate the rebate needed to reach a 10% penetration rate of heat pumps.*
+
+
+```{r}
+H_rebate <- Heating %>% mutate(oc.hp=0.90*oc.hp)
+```
+
+```{r}
+data.frame(Policy = c("Do nothing", "10% rebate"),
+           rbind(apply(predict(model3, newdata = mlogit.data(Heating, shape = "wide", choice = "depvar",
+                       varying = c(8:12))), 2, mean),
+                 apply(predict(model3, newdata = mlogit.data(H_rebate, shape = "wide", choice = "depvar",
+                       varying = c(8:12))), 2, mean)))
+```
+
+
+*Estimate a new model that extends Model 3 by introducing the age of the household head. Use the electric room system (“er”) as the reference level.*
+
+
+```{r}
+model3_1 <- mlogit(depvar ~ ic + oc | agehed, Heating, shape = "wide", choice = "depvar", reflevel = "er", varying = c(3:12))
+
+summary(model3_1)
+```
+
+*5. Use the likelihood ratio test to compare your new model to Model 3.*
+
+```{r}
+lrtest(model3, model3_1)
+```
+
+
+*6. Is the ratio of the coefficient of installation (or operation) cost to the coefficient of age of household head meaningful? Explain.*
+
+El coeficiente se interpreta individual pero en relación con el efectomarginal de la probabilidad de elección.

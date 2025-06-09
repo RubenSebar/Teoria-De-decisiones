@@ -1,0 +1,247 @@
+---
+title: "TAREA_4"
+author: "Ruben Sebastian Barcenas Becerril"
+date: "2025"
+output: html_document
+---
+
+```{r}
+library(knitr)
+library(tidyverse)
+library(discrtr)
+library(dplyr)
+library(ggplot2)
+library(mlogit)
+library(readr)
+library(gplots)
+library(ggmosaic)
+library(treemapify)
+library(ggridges)
+library(ggalluvial)
+library(evd)
+library(htmlwidgets) 
+library(kableExtra)
+library(plotly)
+library(tidyr)
+```
+
+**1. In the example in this chapter we estimated the probabilities of choosing different modes by sidewalk density setting travel time to the in-sample median. Use model2 to calculate the probability of choosing different modes by in-sample median sidewalk density but now for travel times of 20, 30, and 40 min. Discuss the results.**
+
+
+```{r}
+data("mc_commute_wide", package = "discrtr")
+```
+
+```{r}
+example_wide <- mc_commute_wide %>%
+# Select columns from the table
+select(id, choice, starts_with("time")) %>%
+# Filter three decision-makers by their `id`
+# Here the symbol `|` is for "or", so this reads
+# filter rows with id == 566910139 OR id == 566873140 OR id == 566872636
+filter(id == 566910139 |
+id == 566873140 |
+id == 566872636)
+example_wide
+```
+
+
+```{r}
+example_long <- mc_commute_wide %>%
+# Filter three decision-makers by their `id`
+# Here the symbol `|` is for "or", so this reads
+# filter rows with id == 566910139 OR id == 566873140 OR id == 566872636
+filter(id == 566910139 |
+id == 566873140 |
+id == 566872636) %>%
+mlogit.data(shape="wide",
+# Name of column with the choices
+choice = "choice",
+# Numbers of columns with attributes that vary by alternative
+varying = 3:22)
+```
+
+
+
+```{r}
+data.frame(example_long) %>%
+# Select columns
+select(id,
+choice,
+alt,
+starts_with("time"),
+idx)
+```
+
+
+```{r}
+f1 <- mFormula(choice ~ time)
+
+f1 %>%
+  model.matrix(example_long)
+```
+
+
+```{r}
+f2 <- mFormula(choice ~ time | sidewalk_density)
+
+f2 %>%
+model.matrix(example_long)
+```
+
+```{r}
+mc_commute_long <- mc_commute_wide |>
+mlogit.data(shape="wide",
+            # Name of column with the choices
+            choice = "choice",
+            # Numbers of columns with attributes that vary by alternative
+            varying = 3:22)
+
+            class(f1)
+            class(f2)
+        
+```
+
+
+
+```{r}
+model1 <- mlogit(f1, mc_commute_long)
+
+summary(model1)
+```
+
+
+```{r}
+model2 <- mlogit(f2, mc_commute_long)
+
+summary(model2)
+```
+
+
+```{r}
+summary(mc_commute_long$sidewalk_density)
+```
+
+```{r}
+mc_commute_predict <- mc_commute_long[1:52, ]
+```
+
+
+```{r}
+probs <- predict(model2,
+newdata = mc_commute_predict)
+
+print(probs)
+```
+
+```{r}
+median_sidewalk_density <- median(mc_commute_long$sidewalk_density, na.rm = TRUE)
+```
+
+
+```{r}
+mc_commute_long_20min <- mc_commute_long
+mc_commute_long_20min$time <- 20
+probs_20 <- predict(model2, newdata = mc_commute_long_20min)
+
+head(probs_20)
+```
+
+
+```{r}
+mc_commute_long_30min <- mc_commute_long
+mc_commute_long_30min$time <- 30
+probs_30 <- predict(model2, newdata = mc_commute_long_30min)
+
+head(probs_30)
+```
+
+
+```{r}
+mc_commute_long_40min <- mc_commute_long
+mc_commute_long_40min$time <- 40
+probs_40 <- predict(model2, newdata = mc_commute_long_40min)
+
+head(probs_40)
+```
+
+
+# Modelo 3
+
+**2. Estimate a model using formula f3 (call it model3). Discuss the output of this model.**
+
+
+
+```{r}
+f3 <- mFormula(choice ~ 0 | sidewalk_density | time)
+model3 <- mlogit(f3, data = mc_commute_long)
+summary(model3)
+```
+
+```{r}
+median_sidewalk <- median(mc_commute_long$sidewalk_density, na.rm = TRUE)
+```
+
+**3. Use model3 to calculate the probability of choosing different modes by in-sample median sidewalk density but now for travel times of 20, 30, and 40 min. Discuss the results.**
+
+
+```{r}
+mc_commute_20min <- mc_commute_long
+mc_commute_20min$time <- 20
+mc_commute_20min$sidewalk_density <- median_sidewalk
+probs_20min <- predict(model3, newdata = mc_commute_20min)
+
+head(probs_20min)
+```
+
+```{r}
+mc_commute_30min <- mc_commute_long
+mc_commute_30min$time <- 30
+mc_commute_30min$sidewalk_density <- median_sidewalk
+probs_30min <- predict(model3, newdata = mc_commute_30min)
+
+head(probs_30min)
+```
+
+
+```{r}
+mc_commute_40min <- mc_commute_long
+mc_commute_40min$time <- 40
+mc_commute_40min$sidewalk_density <- median_sidewalk
+probs_40min <- predict(model3, newdata = mc_commute_40min)
+
+head(probs_40min)
+```
+
+
+```{r}
+f3 <- mFormula(choice ~ time)
+model3 <- mlogit(f3, mc_commute_long)
+summary(model3)
+```
+
+
+**4. In the general case, what is the value of the log-likelihood of the null (Equally Likely) model?**
+
+
+```{r}
+f0 <- mFormula(choice ~ 1)
+model0 <- mlogit(f0,
+mc_commute_long)
+summary(model0)
+```
+
+```{r}
+1-as.numeric(model2$logLik)/as.numeric(model0$logLik)
+```
+
+```{r}
+1-as.numeric(model3$logLik)/as.numeric(model0$logLik)
+```
+
+**5. Use the likelihood ratio test to compare model3 to model2?Discuss the results. What restrictions would you need to impose in model3 to obtain model2?**
+
+```{r}
+lrtest(model2, model3)
+```
+
