@@ -1,5 +1,5 @@
 ---
-title: "Tarea_5"
+title: "Tarea_5
 author: "Ruben Sebastian Barcenas Becerril"
 date: "2025"
 output: html_document
@@ -46,73 +46,48 @@ La elasticidad mide el cambio porcentual en una variable dependiente, cuando una
 
 *3. Use Model 3 in this chapter and calculate the marginal effects and the elasticities for operating cost at the mean of all variables.*
 
+
 ```{r}
-data("Heating")
+data("Heating", package = "mlogit")
+
+H <- mlogit.data(Heating, shape = "wide", choice = "depvar", varying = 3:12)
+model3 <- mlogit(depvar ~ ic + oc, data = H, reflevel = "ec")
+
+medias <- Heating[1, ]
+medias[3:12] <- Heating %>% select(starts_with("ic"), starts_with("oc")) %>% summarise(across(everything(), mean))
+
+for (type in c("ra", "rr")) {
+  result <- effects(model3, covariate = "oc", type = type,
+                    data = mlogit.data(medias, shape = "wide", choice = "depvar", varying = 3:12))
+  cat("Resultados para tipo:", type, "\n")
+  print(result)
+}
 
 ```
 
 
-```{r}
-Proportion <- Heating %>% group_by(depvar) %>% summarise(no_rows = n())
 
-df <- data.frame(System = c("Gas Central", "Gas Room", "Electric Central", "Electric Room", "Heat Pump"),
-                 Operation = c(mean(Heating$oc.gc), mean(Heating$oc.gr),
-                               mean(Heating$oc.ec), mean(Heating$oc.er),
-                               mean(Heating$oc.hp)),
-                 Proportion = Proportion$no_rows/900)
-
-df %>% kable() %>% kable_styling()
-```
-
-
-```{r}
-H <- Heating %>% mlogit.data(shape = "wide", choice="depvar", varying=c(3:12))
-```
-
-
-```{r}
-
-model3_Long <- mlogit(depvar~oc, H, reflevel = "ec")
-summary(model3_Long)
-
-```
-
-```{r}
-
-oc_mean <- Heating[1, ]
-mean_cost <- Heating %>% select(starts_with("oc")) %>%
-             summarise(across(.cols = everything(), mean))
-
-oc_mean[8:12] <- mean_cost
-head(oc_mean)
-```
-
-```{r}
-p_model1_ic_mean <- predict(model3, newdata = mlogit.data(oc_mean, shape = "wide", choice = "depvar", varying = 8:12))
-```
-
-
-```{r}
-effects(model3, covariate = "oc", type = "ra", data = mlogit.data(oc_mean, shape = "wide", choice = "depvar", varying = 8:12))
-```
-
-```{r}
-effects(model3, covariate = "oc", type = "rr", data = mlogit.data(oc_mean, shape = "wide", choice = "depvar", varying = 8:12))
-```
 
 *4. Use Model 3 in this chapter to calculate the rebate needed to reach a 10% penetration rate of heat pumps.*
 
-
 ```{r}
-H_rebate <- Heating %>% mutate(oc.hp=0.90*oc.hp)
-```
+descuentos <- seq(0, 2000, by = 50)
 
-```{r}
-data.frame(Policy = c("Do nothing", "10% rebate"),
-           rbind(apply(predict(model3, newdata = mlogit.data(Heating, shape = "wide", choice = "depvar",
-                       varying = c(8:12))), 2, mean),
-                 apply(predict(model3, newdata = mlogit.data(H_rebate, shape = "wide", choice = "depvar",
-                       varying = c(8:12))), 2, mean)))
+hp_shares <- numeric(length(descuentos))
+
+
+Heating_original <- Heating
+for (i in seq_along(descuentos)) {
+  Heating_temp <- Heating_original
+  Heating_temp$ic.hp <- Heating_temp$ic.hp - descuentos[i]
+
+prob_temp <- predict(model3, newdata = mlogit.data(Heating_temp, shape = "wide", choice = "depvar", varying = 3:12, id.var = "idcase"), type = "probabilities")
+
+  hp_shares[i] <- mean(prob_temp[, "hp"])}
+
+
+required_descuento <- descuentos[which(hp_shares >= 0.10)[1]]
+required_descuento
 ```
 
 
@@ -120,15 +95,15 @@ data.frame(Policy = c("Do nothing", "10% rebate"),
 
 
 ```{r}
-model3_1 <- mlogit(depvar ~ ic + oc | agehed, Heating, shape = "wide", choice = "depvar", reflevel = "er", varying = c(3:12))
+model4 <- mlogit(depvar ~ ic + oc | agehed, Heating, shape = "wide", choice = "depvar", reflevel = "er", varying = c(3:12))
 
-summary(model3_1)
+summary(model4)
 ```
 
 *5. Use the likelihood ratio test to compare your new model to Model 3.*
 
 ```{r}
-lrtest(model3, model3_1)
+lrtest(model3, model4)
 ```
 
 
