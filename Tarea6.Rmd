@@ -38,6 +38,9 @@ library(evd)
 ```{r}
 data("Heating", package = "mlogit")
 H <- mlogit.data(Heating, shape = "wide", choice = "depvar", varying = c(3:12))
+
+nl2 <- mlogit(depvar ~ ic + oc | 0, H)
+
 ```
 
 
